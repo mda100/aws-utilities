@@ -1,3 +1,5 @@
+#TODO: add filter by region option to avoid looping through all buckets
+
 # requires python 3.10+
 import boto3
 from typing import Callable
