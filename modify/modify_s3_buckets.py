@@ -31,6 +31,36 @@ assert(ACCESS_KEY_ID)
 # assert(METHOD in ALLOWED_MODIFICATIONS)
 
 ## Modification Functions: (s3_client: any, bucket_name: str) -> dict##
+
+def delete_bucket_contents (s3_client: any, bucket_name: str) -> None:
+
+  def _log (success: bool, message: str) -> None:
+    success_str = "success" if success else "failure"
+    with open(f"{LOG_PATH}check-logging-{success_str}.csv", "a+") as f:
+      f.write(f"{message},")
+
+  proceed = input(f"Reset bucket: {bucket_name}? (y/n): ").lower().strip() == 'y'
+
+  if (proceed):   
+    try:
+      objects = s3_client.list_objects_v2(Bucket=bucket_name).get('Contents',[])
+      keys = [{'Key': obj['Key']} for obj in objects]
+      response = s3_client.delete_objects(
+        Bucket=bucket_name,
+        Delete={
+            'Objects': keys,
+            'Quiet': True
+        }
+      )
+      if(response.get('ResponseMetadata').get('HTTPStatusCode') == 200):
+        _log(success=True, message=f"{bucket_name}")
+      else:
+        _log(success=False, message=f"{bucket_name}")
+    except:
+      _log(success=False, message=f"{bucket_name}")
+  else:
+    print(f"cancelled reset of bucket {bucket_name}")
+
 def add_versioning (s3_client: any, bucket_name: str) -> dict:
   response = s3_client.put_bucket_versioning(
     Bucket=bucket_name,
@@ -130,13 +160,15 @@ session = boto3.Session(
 )
 s3_client = session.client('s3')
 buckets = s3_client.list_buckets().get('Buckets',[])
-buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
+# buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
+buckets_list = [bucket['Name'] for bucket in buckets if "s3-server-access-logs-s3-fileread" in bucket['Name']]
 # method = choose_method(method=METHOD)
 
 print (f"applying check logging to {len(buckets_list)} s3 buckets...")
 for bucket_name in buckets_list:
-   print(f"bucket: {bucket_name}")
-   check_logging(s3_client=s3_client, bucket_name=bucket_name)
+  print(f"bucket: {bucket_name}")
+  delete_bucket_contents(s3_client=s3_client, bucket_name=bucket_name)
+  #  check_logging(s3_client=s3_client, bucket_name=bucket_name)
     # modify_bucket(
     #     s3_client=s3_client,
     #     bucket_name=bucket_name,
