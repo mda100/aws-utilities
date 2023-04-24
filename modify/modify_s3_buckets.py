@@ -27,8 +27,8 @@ assert(ALLOWED_MODIFICATIONS)
 assert(EXCLUDED_BUCKETS)
 assert(ACCESS_KEY)
 assert(ACCESS_KEY_ID)
-assert(METHOD)
-assert(METHOD in ALLOWED_MODIFICATIONS)
+# assert(METHOD)
+# assert(METHOD in ALLOWED_MODIFICATIONS)
 
 ## Modification Functions: (s3_client: any, bucket_name: str) -> dict##
 def add_versioning (s3_client: any, bucket_name: str) -> dict:
@@ -39,6 +39,40 @@ def add_versioning (s3_client: any, bucket_name: str) -> dict:
     }
   )
   return response
+
+def check_logging (s3_client: any, bucket_name: str) -> None:
+  try: 
+    logging_config = s3_client.get_bucket_logging(Bucket=bucket_name)
+    if 'LoggingEnabled' in logging_config:
+        target_bucket = logging_config['LoggingEnabled']['TargetBucket']
+        target_prefix = logging_config['LoggingEnabled']['TargetPrefix']
+        if not target_prefix.endswith('/'):
+          target_prefix += '/'
+          logging_config = {
+            'LoggingEnabled': {
+                'TargetBucket': target_bucket,
+                'TargetPrefix': target_prefix
+            }
+          }
+          response = s3_client.put_bucket_logging(
+              Bucket=bucket_name,
+              BucketLoggingStatus=logging_config
+          )
+          if response.get('ResponseMetadata').get('HTTPStatusCode') == 200:
+            with open(f"{LOG_PATH}check-logging-success.csv", "a+") as f:
+              f.write(f"{bucket_name}: {target_bucket}/{target_prefix},")
+          else:
+            with open(f"{LOG_PATH}check-logging-failure.txt", "a+") as f:
+              f.write(f"{bucket_name}-{response.get('ResponseMetadata').get('HTTPStatusCode')}")
+        with open(f"{LOG_PATH}check-logging-success.csv", "a+") as f:
+          f.write(f"{bucket_name}: {target_bucket}/{target_prefix},")
+    else:
+      with open(f"{LOG_PATH}check-logging-failure.txt", "a+") as f:
+        f.write(f"{bucket_name}-logging-not-enabled")
+  except:
+    with open(f"{LOG_PATH}check-logging-failure.txt", "a+") as f:
+      f.write(f"{bucket_name}-http-failure")
+    
 
 def add_logging (s3_client: any, bucket_name: str) -> dict:
   response = s3_client.put_bucket_logging(
@@ -97,12 +131,14 @@ session = boto3.Session(
 s3_client = session.client('s3')
 buckets = s3_client.list_buckets().get('Buckets',[])
 buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
-method = choose_method(method=METHOD)
+# method = choose_method(method=METHOD)
 
-print (f"applying {METHOD} to {len(buckets_list)} s3 buckets...")
+print (f"applying check logging to {len(buckets_list)} s3 buckets...")
 for bucket_name in buckets_list:
-    modify_bucket(
-        s3_client=s3_client,
-        bucket_name=bucket_name,
-        modification=method
-      )
+   print(f"bucket: {bucket_name}")
+   check_logging(s3_client=s3_client, bucket_name=bucket_name)
+    # modify_bucket(
+    #     s3_client=s3_client,
+    #     bucket_name=bucket_name,
+    #     modification=method
+    #   )
