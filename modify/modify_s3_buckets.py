@@ -11,7 +11,7 @@ ACCESS_KEY_ID = input('Enter your AWS access key ID: ')
 ACCESS_KEY = input('Enter your AWS secret access key: ')
 REGION = input('Enter your AWS region: ')
 METHOD = input('Enter modification method (options include versioning, logging, access): ')
-S3_TOKEN = "staging-serverlessdeploymentbuck"
+S3_TOKEN = "serverless"
 
 with open('config.json') as f:
     config = json.load(f)
@@ -46,12 +46,12 @@ def public_access_block (s3_client: any, bucket_name: str) -> dict:
   )
   return response
 
-def update_bucket (s3_client: any, bucket_name: str, method: Callable[[any, str],dict]) -> None:
+def update_bucket (s3_client: any, bucket_name: str, method: Callable[[any, str],dict], automate: bool = False) -> None:
 
   logging.basicConfig(filename='s3_modification.log', level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s')
-
-  proceed = input(f"Reset bucket: {bucket_name}? (y/n): ").lower().strip() == 'y'
+  
+  proceed = automate or input(f"Reset bucket: {bucket_name}? (y/n): ").lower().strip() == 'y'
 
   if (proceed):   
     try:
@@ -65,7 +65,7 @@ def update_bucket (s3_client: any, bucket_name: str, method: Callable[[any, str]
   else:
     print(f"cancelled reset of bucket {bucket_name}")
 
-def update_buckets_iter (method: Callable[[any, str],dict]) -> None:
+def update_buckets_iter (method: Callable[[any, str],dict], s3_token: str = S3_TOKEN, automate: bool = False) -> None:
   session = boto3.Session(
     aws_access_key_id=ACCESS_KEY_ID,
     aws_secret_access_key=ACCESS_KEY,
@@ -73,11 +73,11 @@ def update_buckets_iter (method: Callable[[any, str],dict]) -> None:
   )
   s3_client = session.client('s3')
   buckets = s3_client.list_buckets().get('Buckets',[])
-  buckets_list = [bucket['Name'] for bucket in buckets if S3_TOKEN in bucket['Name']]
+  buckets_list = [bucket['Name'] for bucket in buckets if s3_token in bucket['Name']]
   print (f"applying check logging to {len(buckets_list)} s3 buckets...")
   for bucket_name in buckets_list:
     print(f"bucket: {bucket_name}")
-    update_bucket(s3_client=s3_client, bucket_name=bucket_name, method=method)
+    update_bucket(s3_client=s3_client, bucket_name=bucket_name, method=method, automate=automate)
 
 
 
@@ -224,4 +224,4 @@ def choose_method(method: str) -> None:
 #     #     modification=method
 #     #   )
 
-update_buckets_iter(method=public_access_block)
+update_buckets_iter(method=public_access_block, automate=True)
