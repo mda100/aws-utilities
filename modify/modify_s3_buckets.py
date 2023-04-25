@@ -4,12 +4,14 @@
 import boto3
 from typing import Callable
 import json
+import logging
 
 ## Globals ##
 ACCESS_KEY_ID = input('Enter your AWS access key ID: ')
 ACCESS_KEY = input('Enter your AWS secret access key: ')
 REGION = input('Enter your AWS region: ')
 METHOD = input('Enter modification method (options include versioning, logging, access): ')
+S3_TOKEN = "staging-serverlessdeploymentbuck"
 
 with open('config.json') as f:
     config = json.load(f)
@@ -31,6 +33,53 @@ assert(ACCESS_KEY_ID)
 # assert(METHOD in ALLOWED_MODIFICATIONS)
 
 ## Modification Functions: (s3_client: any, bucket_name: str) -> dict##
+
+def public_access_block (s3_client: any, bucket_name: str) -> dict:
+  response = s3_client.put_public_access_block(
+    Bucket=bucket_name,
+    PublicAccessBlockConfiguration={
+        "BlockPublicAcls": True,
+        "IgnorePublicAcls": True,
+        "BlockPublicPolicy": True,
+        "RestrictPublicBuckets": True
+    }
+  )
+  return response
+
+def update_bucket (s3_client: any, bucket_name: str, method: Callable[[any, str],dict]) -> None:
+
+  logging.basicConfig(filename='s3_modification.log', level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s')
+
+  proceed = input(f"Reset bucket: {bucket_name}? (y/n): ").lower().strip() == 'y'
+
+  if (proceed):   
+    try:
+      response = method(s3_client, bucket_name)
+      if(response.get('ResponseMetadata').get('HTTPStatusCode') == 200):
+        logging.info(f"bucket: {bucket_name} - Success")
+      else:
+        logging.info(f"bucket: {bucket_name} - Failure: Bad Response")
+    except:
+      logging.info(f"bucket: {bucket_name} - Failure: Can't Connect")
+  else:
+    print(f"cancelled reset of bucket {bucket_name}")
+
+def update_buckets_iter (method: Callable[[any, str],dict]) -> None:
+  session = boto3.Session(
+    aws_access_key_id=ACCESS_KEY_ID,
+    aws_secret_access_key=ACCESS_KEY,
+    region_name=REGION
+  )
+  s3_client = session.client('s3')
+  buckets = s3_client.list_buckets().get('Buckets',[])
+  buckets_list = [bucket['Name'] for bucket in buckets if S3_TOKEN in bucket['Name']]
+  print (f"applying check logging to {len(buckets_list)} s3 buckets...")
+  for bucket_name in buckets_list:
+    print(f"bucket: {bucket_name}")
+    update_bucket(s3_client=s3_client, bucket_name=bucket_name, method=method)
+
+
 
 def delete_bucket_contents (s3_client: any, bucket_name: str) -> None:
 
@@ -153,24 +202,26 @@ def choose_method(method: str) -> None:
          
    
 ## Begin Session ##
-session = boto3.Session(
-    aws_access_key_id=ACCESS_KEY_ID,
-    aws_secret_access_key=ACCESS_KEY,
-    region_name=REGION
-)
-s3_client = session.client('s3')
-buckets = s3_client.list_buckets().get('Buckets',[])
-# buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
-buckets_list = [bucket['Name'] for bucket in buckets if "s3-server-access-logs-s3-fileread" in bucket['Name']]
-# method = choose_method(method=METHOD)
+# session = boto3.Session(
+#     aws_access_key_id=ACCESS_KEY_ID,
+#     aws_secret_access_key=ACCESS_KEY,
+#     region_name=REGION
+# )
+# s3_client = session.client('s3')
+# buckets = s3_client.list_buckets().get('Buckets',[])
+# # buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
+# buckets_list = [bucket['Name'] for bucket in buckets if S3_TOKEN in bucket['Name']]
+# # method = choose_method(method=METHOD)
 
-print (f"applying check logging to {len(buckets_list)} s3 buckets...")
-for bucket_name in buckets_list:
-  print(f"bucket: {bucket_name}")
-  delete_bucket_contents(s3_client=s3_client, bucket_name=bucket_name)
-  #  check_logging(s3_client=s3_client, bucket_name=bucket_name)
-    # modify_bucket(
-    #     s3_client=s3_client,
-    #     bucket_name=bucket_name,
-    #     modification=method
-    #   )
+# print (f"applying check logging to {len(buckets_list)} s3 buckets...")
+# for bucket_name in buckets_list:
+#   print(f"bucket: {bucket_name}")
+#   delete_bucket_contents(s3_client=s3_client, bucket_name=bucket_name)
+#   #  check_logging(s3_client=s3_client, bucket_name=bucket_name)
+#     # modify_bucket(
+#     #     s3_client=s3_client,
+#     #     bucket_name=bucket_name,
+#     #     modification=method
+#     #   )
+
+update_buckets_iter(method=public_access_block)
