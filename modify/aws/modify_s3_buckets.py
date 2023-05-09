@@ -22,13 +22,7 @@ LOG_PATH = config.get("LOG_PATH") # type : str
 ALLOWED_MODIFICATIONS = config.get("ALLOWED_MODIFICATIONS") # type : List[str]
 EXCLUDED_BUCKETS = config.get("EXCLUDED_BUCKETS") # type : List[str]
 
-assert(TARGET_BUCKET)
-assert(TARGET_PREFIX)
-assert(LOG_PATH)
-assert(ALLOWED_MODIFICATIONS)
-assert(EXCLUDED_BUCKETS)
-assert(ACCESS_KEY)
-assert(ACCESS_KEY_ID)
+
 # assert(METHOD)
 # assert(METHOD in ALLOWED_MODIFICATIONS)
 
@@ -224,4 +218,12 @@ def choose_method(method: str) -> None:
 #     #     modification=method
 #     #   )
 
-update_buckets_iter(method=public_access_block, automate=True)
+# update_buckets_iter(method=public_access_block, automate=True)
+
+session = boto3.Session(
+    aws_access_key_id=ACCESS_KEY_ID,
+    aws_secret_access_key=ACCESS_KEY,
+    region_name=REGION
+  )
+s3_client = session.client('s3')
+buckets = s3_client.list_buckets().get('Buckets',[])

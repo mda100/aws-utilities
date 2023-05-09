@@ -1,0 +1,8 @@
+every user has attached policies and inline policies
+the attached policies has ARNS the inline policies are just named json
+the attached policies can be attached directly or by group
+we want each user to have only policies attached by group
+it is ok to make up groups just for one user to accomplish this
+we wan't to make sure all user policies are in the assigned group before removing them
+
+- 
