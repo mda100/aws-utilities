@@ -1,31 +1,17 @@
+# this script as is updates SSM management for EC2 instances
+
 import boto3
 import logging
-import json 
 
-with open('config.json') as f:
-    config = json.load(f)
-
-SECRETS = config.get("SECRETS")
-LOGS = config.get("LOGS")
-REGIONS = config.get("REGIONS")
-
-with open(SECRETS) as f:
-  aws_access_key_id, aws_secret_access_key = f.readline().strip().split(',')
-
-logging.basicConfig(filename=LOGS, level=logging.INFO)
-
-session = boto3.Session(
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-)
-
-logging.basicConfig(filename=LOGS, level=logging.INFO)
+REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
+session = boto3.Session()
+s3_client = session.client('s3')
+logging.basicConfig(filename='logs/ssm_ec2.log', level=logging.INFO)
 
 policy_arn = 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
 instance_role_arn = 'arn:aws:iam::693656978031:instance-profile/SSMManagedEC2Instance'
 
 iam_client = boto3.client('iam')
-
 
 def ec2_loop(ec2_client: any) -> None:
   instances = ec2_client.describe_instances()

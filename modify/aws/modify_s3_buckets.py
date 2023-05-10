@@ -6,12 +6,6 @@ from typing import Callable
 import json
 import logging
 
-## Globals ##
-ACCESS_KEY_ID = input('Enter your AWS access key ID: ')
-ACCESS_KEY = input('Enter your AWS secret access key: ')
-REGION = input('Enter your AWS region: ')
-METHOD = input('Enter modification method (options include versioning, logging, access): ')
-S3_TOKEN = "serverless"
 
 with open('config.json') as f:
     config = json.load(f)
@@ -59,19 +53,19 @@ def update_bucket (s3_client: any, bucket_name: str, method: Callable[[any, str]
   else:
     print(f"cancelled reset of bucket {bucket_name}")
 
-def update_buckets_iter (method: Callable[[any, str],dict], s3_token: str = S3_TOKEN, automate: bool = False) -> None:
-  session = boto3.Session(
-    aws_access_key_id=ACCESS_KEY_ID,
-    aws_secret_access_key=ACCESS_KEY,
-    region_name=REGION
-  )
-  s3_client = session.client('s3')
-  buckets = s3_client.list_buckets().get('Buckets',[])
-  buckets_list = [bucket['Name'] for bucket in buckets if s3_token in bucket['Name']]
-  print (f"applying check logging to {len(buckets_list)} s3 buckets...")
-  for bucket_name in buckets_list:
-    print(f"bucket: {bucket_name}")
-    update_bucket(s3_client=s3_client, bucket_name=bucket_name, method=method, automate=automate)
+# def update_buckets_iter (method: Callable[[any, str],dict], s3_token: str = S3_TOKEN, automate: bool = False) -> None:
+#   session = boto3.Session(
+#     aws_access_key_id=ACCESS_KEY_ID,
+#     aws_secret_access_key=ACCESS_KEY,
+#     region_name=REGION
+#   )
+#   s3_client = session.client('s3')
+#   buckets = s3_client.list_buckets().get('Buckets',[])
+#   buckets_list = [bucket['Name'] for bucket in buckets if s3_token in bucket['Name']]
+#   print (f"applying check logging to {len(buckets_list)} s3 buckets...")
+#   for bucket_name in buckets_list:
+#     print(f"bucket: {bucket_name}")
+#     update_bucket(s3_client=s3_client, bucket_name=bucket_name, method=method, automate=automate)
 
 
 
@@ -193,37 +187,17 @@ def choose_method(method: str) -> None:
          return Modification(value="logging", modifier=add_logging)
       case other:
          raise ValueError((f"Allowed values are: {ALLOWED_MODIFICATIONS}"))
-         
-   
-## Begin Session ##
-# session = boto3.Session(
-#     aws_access_key_id=ACCESS_KEY_ID,
-#     aws_secret_access_key=ACCESS_KEY,
-#     region_name=REGION
-# )
-# s3_client = session.client('s3')
-# buckets = s3_client.list_buckets().get('Buckets',[])
-# # buckets_list = [bucket['Name'] for bucket in buckets if bucket['Name'] not in EXCLUDED_BUCKETS]
-# buckets_list = [bucket['Name'] for bucket in buckets if S3_TOKEN in bucket['Name']]
-# # method = choose_method(method=METHOD)
 
-# print (f"applying check logging to {len(buckets_list)} s3 buckets...")
-# for bucket_name in buckets_list:
-#   print(f"bucket: {bucket_name}")
-#   delete_bucket_contents(s3_client=s3_client, bucket_name=bucket_name)
-#   #  check_logging(s3_client=s3_client, bucket_name=bucket_name)
-#     # modify_bucket(
-#     #     s3_client=s3_client,
-#     #     bucket_name=bucket_name,
-#     #     modification=method
-#     #   )
 
-# update_buckets_iter(method=public_access_block, automate=True)
-
-session = boto3.Session(
-    aws_access_key_id=ACCESS_KEY_ID,
-    aws_secret_access_key=ACCESS_KEY,
-    region_name=REGION
-  )
+session = boto3.Session()
 s3_client = session.client('s3')
 buckets = s3_client.list_buckets().get('Buckets',[])
+
+for bucket in buckets:
+  bucket_name = bucket.get('Name')
+  if bucket_name == 'aws-cloudtrail-logs-693656978031-35b9eeb6':
+    continue
+  try:
+    response = add_versioning(s3_client=s3_client, bucket_name=bucket_name)
+  except:
+    raise BaseException(f"failed request bucket: {bucket_name}")
