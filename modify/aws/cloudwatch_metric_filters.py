@@ -92,7 +92,7 @@ for metric_filter in metric_filters:
         Namespace='CloudTrail/Metrics',
         Statistic='SampleCount',
         ComparisonOperator='GreaterThanOrEqualToThreshold',
-        Threshold=1,
+        Threshold=5,
         Period=300,
         EvaluationPeriods=1,
         AlarmActions=[
