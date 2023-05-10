@@ -5,7 +5,7 @@ cloudwatch = session.client('cloudwatch')
 logs = session.client('logs')
 sns = session.client('sns')
 
-LOG_GROUP_NAME = 'cloudwatch-metric-alarms'
+LOG_GROUP_NAME = 'aws-cloudtrail-logs-693656978031-71604a88'
 TOPIC_ARN = 'arn:aws:sns:us-west-2:693656978031:cloudwatch-metric-alarms'
 
 # List of metric filters
